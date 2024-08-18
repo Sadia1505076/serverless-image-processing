@@ -14,20 +14,30 @@ Globals:
     LoggingConfig:
       LogFormat: JSON
 Resources:
-  HelloWorldFunction:
+  ImageUploadBucket:
+    Type: AWS::S3::Bucket
+
+  ProcessedImagesBucket:
+    Type: AWS::S3::Bucket
+
+  ImageProcessingQueue:
+    Type: AWS::SQS::Queue
+
+  SQSProducerFunction:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
-      CodeUri: hello-world/
+      CodeUri: SQSProducer/
       Handler: app.lambdaHandler
       Runtime: nodejs20.x
       Architectures:
       - x86_64
       Events:
-        HelloWorld:
-          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+        ImageUpload:
+          Type: S3
           Properties:
-            Path: /hello
-            Method: get
+            Bucket: !Ref ImageUploadBucket
+            Events: s3.ObjectCreated:*
+
     Metadata: # Manage esbuild properties
       BuildMethod: esbuild
       BuildProperties:
@@ -36,17 +46,97 @@ Resources:
         Sourcemap: true
         EntryPoints:
         - app.ts
+  
+  SQSConsumerFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: SQSConsumer/
+      Handler: app.lambdaHandler
+      Runtime: nodejs20.x
+      Architectures:
+      - x86_64
+      Events:
+        SQSTrigger:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt ImageProcessingQueue.Arn
+      Environment:
+        Variables:
+          OUTPUT_BUCKET: !Ref ProcessedImagesBucket
+
+    Metadata: # Manage esbuild properties
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: es2020
+        Sourcemap: true
+        EntryPoints:
+        - app.ts
+  
+  # Permissions for Lambda functions to access S3 and SQS
+  S3BucketGetObjectPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref ImageUploadBucket
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !GetAtt SQSProducerFunctionRole.Arn
+            Action:
+              - s3:GetObject
+            Resource: !Sub arn:aws:s3:::${ImageUploadBucket}/*
+
+  S3BucketPutObjectPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref ProcessedImagesBucket
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !GetAtt SQSConsumerFunctionRole.Arn
+            Action:
+              - s3:PutObject
+            Resource: !Sub arn:aws:s3:::${ProcessedImagesBucket}/*
+
+  LambdaSQSPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: LambdaSQSPolicy
+      Roles:
+        - !GetAtt SQSProducerFunctionRole.Arn
+        - !GetAtt SQSConsumerFunctionRole.Arn
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - sqs:SendMessage
+              - sqs:ReceiveMessage
+              - sqs:DeleteMessage
+              - sqs:GetQueueAttributes
+            Resource: !GetAtt ImageProcessingQueue.Arn
 
 Outputs:
   # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
   # Find out more about other implicit resources you can reference within SAM
   # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
-  HelloWorldApi:
-    Description: API Gateway endpoint URL for Prod stage for Hello World function
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello/"
-  HelloWorldFunction:
-    Description: Hello World Lambda Function ARN
-    Value: !GetAtt HelloWorldFunction.Arn
-  HelloWorldFunctionIamRole:
-    Description: Implicit IAM Role created for Hello World function
-    Value: !GetAtt HelloWorldFunctionRole.Arn
+  ImageUploadBucketName:
+    Description: "Name of the S3 bucket"
+    Value: !Ref ImageUploadBucket
+  ProcessedImagesBucketName:
+    Description: "Name of the S3 bucket"
+    Value: !Ref ProcessedImagesBucket
+  SQSProducerFunction:
+    Description: SQS Producer function
+    Value: !GetAtt SQSProducerFunction.Arn
+  SQSConsumerFunction:
+    Description: SQS Consumer function
+    Value: !GetAtt SQSConsumerFunction.Arn
+  SQSProducerFunctionIamRole:
+    Description: Implicit IAM Role created for sqs producer function
+    Value: !GetAtt SQSProducerFunctionRole.Arn
+  SQSConsumerFunctionIamRole:
+    Description: Implicit IAM Role created for sqs consumer function
+    Value: !GetAtt SQSConsumerFunctionRole.Arn
