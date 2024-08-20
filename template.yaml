@@ -22,6 +22,8 @@ Resources:
 
   ImageProcessingQueue:
     Type: AWS::SQS::Queue
+    Properties:
+      QueueName: image-processing-queue
 
   SQSProducerFunction:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
@@ -31,6 +33,9 @@ Resources:
       Runtime: nodejs20.x
       Architectures:
       - x86_64
+      Environment:
+        Variables:
+          QUEUE_URL: !Ref ImageProcessingQueue
       Events:
         ImageUpload:
           Type: S3
@@ -82,7 +87,7 @@ Resources:
         Statement:
           - Effect: Allow
             Principal:
-              AWS: !GetAtt SQSProducerFunctionRole.Arn
+              AWS: !GetAtt SQSConsumerFunctionRole.Arn
             Action:
               - s3:GetObject
             Resource: !Sub arn:aws:s3:::${ImageUploadBucket}/*

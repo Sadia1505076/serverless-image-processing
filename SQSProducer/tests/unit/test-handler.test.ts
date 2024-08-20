@@ -1,57 +1,46 @@
-import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
+import { APIGatewayProxyEvent, APIGatewayProxyResult, S3Event } from 'aws-lambda';
 import { lambdaHandler } from '../../app';
 import { expect, describe, it } from '@jest/globals';
 
 describe('Unit test for app handler', function () {
     it('verifies successful response', async () => {
-        const event: APIGatewayProxyEvent = {
-            httpMethod: 'get',
-            body: '',
-            headers: {},
-            isBase64Encoded: false,
-            multiValueHeaders: {},
-            multiValueQueryStringParameters: {},
-            path: '/hello',
-            pathParameters: {},
-            queryStringParameters: {},
-            requestContext: {
-                accountId: '123456789012',
-                apiId: '1234',
-                authorizer: {},
-                httpMethod: 'get',
-                identity: {
-                    accessKey: '',
-                    accountId: '',
-                    apiKey: '',
-                    apiKeyId: '',
-                    caller: '',
-                    clientCert: {
-                        clientCertPem: '',
-                        issuerDN: '',
-                        serialNumber: '',
-                        subjectDN: '',
-                        validity: { notAfter: '', notBefore: '' },
+        const event: S3Event = {
+            "Records": [
+                {
+                    "eventVersion": "2.1",
+                    "eventSource": "aws:s3",
+                    "awsRegion": "us-east-1",
+                    "eventTime": "2024-08-15T14:55:32.000Z",
+                    "eventName": "ObjectCreated:Put",
+                    "userIdentity": {
+                        "principalId": "AWS:EXAMPLE"
                     },
-                    cognitoAuthenticationProvider: '',
-                    cognitoAuthenticationType: '',
-                    cognitoIdentityId: '',
-                    cognitoIdentityPoolId: '',
-                    principalOrgId: '',
-                    sourceIp: '',
-                    user: '',
-                    userAgent: '',
-                    userArn: '',
-                },
-                path: '/hello',
-                protocol: 'HTTP/1.1',
-                requestId: 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef',
-                requestTimeEpoch: 1428582896000,
-                resourceId: '123456',
-                resourcePath: '/hello',
-                stage: 'dev',
-            },
-            resource: '',
-            stageVariables: {},
+                    "requestParameters": {
+                        "sourceIPAddress": "192.0.2.0"
+                    },
+                    "responseElements": {
+                        "x-amz-request-id": "EXAMPLE123456789",
+                        "x-amz-id-2": "EXAMPLE1Hya1Mkp85MA2YVQXnpOtXFm/jGfkL8=",
+                    },
+                    "s3": {
+                        "s3SchemaVersion": "1.0",
+                        "configurationId": "testConfigRule",
+                        "bucket": {
+                            "name": "my-bucket",
+                            "ownerIdentity": {
+                                "principalId": "EXAMPLE"
+                            },
+                            "arn": "arn:aws:s3:::my-bucket"
+                        },
+                        "object": {
+                            "key": "my-image.jpg",
+                            "size": 1024,
+                            "eTag": "0123456789abcdef0123456789abcdef",
+                            "sequencer": "0A1B2C3D4E5F678901"
+                        }
+                    }
+                }
+            ]
         };
         const result: APIGatewayProxyResult = await lambdaHandler(event);
 

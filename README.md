@@ -59,17 +59,48 @@ Build your application with the `sam build` command.
 image-processing$ sam build
 ```
 
-The SAM CLI installs dependencies defined in `hello-world/package.json`, compiles TypeScript with esbuild, creates a deployment package, and saves it in the `.aws-sam/build` folder.
+The SAM CLI installs dependencies defined in `<function_folder>/package.json`, compiles TypeScript with esbuild, creates a deployment package, and saves it in the `.aws-sam/build` folder.
 
 Test a single function by invoking it directly with a test event. An event is a JSON document that represents the input that the function receives from the event source. Test events are included in the `events` folder in this project.
 
 Run functions locally and invoke them with the `sam local invoke` command.
 
 ```bash
-image-processing$ sam local invoke HelloWorldFunction --event events/event.json
+image-processing$ sam local invoke <function_name> --event events/event.json
 ```
 
-The SAM CLI can also emulate your application's API. Use the `sam local start-api` to run the API locally on port 3000.
+If we have multiple functions, we can move the `events` folder inside the corresponding function. Sometimes we might need to override a functions environment variable inside a `.env.json` file and include that while locally invoking it.
+For a function having environment variable like the following:
+```yaml
+  SQSProducerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: SQSProducer/
+      Handler: app.lambdaHandler
+      Runtime: nodejs20.x
+      Architectures:
+      - x86_64
+      Environment:
+        Variables:
+          QUEUE_URL: !Ref ImageProcessingQueue
+```
+`.env.json` file should be like the following if we are using localstack:
+```json
+{
+    "SQSProducerFunction": {
+        "QUEUE_URL": "https://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/image-processing-queue"
+    }
+}
+
+```
+We need to invoke it then using:
+```bash
+image-processing$ sam local invoke <function_name> --env-vars events/.env.json --event events/event.json
+```
+
+
+
+The SAM CLI can also emulate your application's API if you have any. Use the `sam local start-api` to run the API locally on port 3000.
 
 ```bash
 image-processing$ sam local start-api
@@ -104,10 +135,10 @@ You can find more information and examples about filtering Lambda function logs 
 
 ## Unit tests
 
-Tests are defined in the `hello-world/tests` folder in this project. Use NPM to install the [Jest test framework](https://jestjs.io/) and run unit tests.
+Tests are defined in the `<function_folder>/tests` folder in this project. Define the "event" according to the function in the "test-handler.test.ts" file. Use NPM to install the [Jest test framework](https://jestjs.io/) and run unit tests.
 
 ```bash
-image-processing$ cd hello-world
+image-processing$ cd <function_folder>
 hello-world$ npm install
 hello-world$ npm run test
 ```
