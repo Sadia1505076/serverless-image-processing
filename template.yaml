@@ -41,7 +41,7 @@ Resources:
           Type: S3
           Properties:
             Bucket: !Ref ImageUploadBucket
-            Events: s3.ObjectCreated:*
+            Events: s3:ObjectCreated:*
 
     Metadata: # Manage esbuild properties
       BuildMethod: esbuild
@@ -52,14 +52,26 @@ Resources:
         EntryPoints:
         - app.ts
   
+  SharpLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: sharp
+      ContentUri: SQSConsumer/layers/release-x64.zip # zip
+      CompatibleArchitectures:
+        - arm64
+      CompatibleRuntimes:
+        - nodejs20.x
+
   SQSConsumerFunction:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
       CodeUri: SQSConsumer/
       Handler: app.lambdaHandler
       Runtime: nodejs20.x
+      Layers:
+        - !Ref SharpLayer
       Architectures:
-      - x86_64
+        - x86_64
       Events:
         SQSTrigger:
           Type: SQS
@@ -68,6 +80,8 @@ Resources:
       Environment:
         Variables:
           OUTPUT_BUCKET: !Ref ProcessedImagesBucket
+          INPUT_BUCKET: !Ref ImageUploadBucket
+          QUEUE_URL: !Ref ImageProcessingQueue
 
     Metadata: # Manage esbuild properties
       BuildMethod: esbuild
@@ -76,7 +90,12 @@ Resources:
         Target: es2020
         Sourcemap: true
         EntryPoints:
-        - app.ts
+          - app.ts
+        Format: esm
+        OutExtension:
+          - .js=.mjs
+        External:
+          - sharp # use layer
   
   # Permissions for Lambda functions to access S3 and SQS
   S3BucketGetObjectPolicy:
@@ -110,8 +129,8 @@ Resources:
     Properties:
       PolicyName: LambdaSQSPolicy
       Roles:
-        - !GetAtt SQSProducerFunctionRole.Arn
-        - !GetAtt SQSConsumerFunctionRole.Arn
+        - !Ref SQSProducerFunctionRole
+        - !Ref SQSConsumerFunctionRole
       PolicyDocument:
         Version: '2012-10-17'
         Statement:

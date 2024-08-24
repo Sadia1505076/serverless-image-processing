@@ -138,9 +138,9 @@ You can find more information and examples about filtering Lambda function logs 
 Tests are defined in the `<function_folder>/tests` folder in this project. Define the "event" according to the function in the "test-handler.test.ts" file. Use NPM to install the [Jest test framework](https://jestjs.io/) and run unit tests.
 
 ```bash
-image-processing$ cd <function_folder>
-hello-world$ npm install
-hello-world$ npm run test
+image-processing$ cd SQSProducer
+SQSProducer$ npm install
+SQSProducer$ npm run test
 ```
 
 ## Cleanup

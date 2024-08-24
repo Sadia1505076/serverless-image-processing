@@ -1,5 +1,4 @@
-import { APIGatewayProxyEvent, APIGatewayProxyResult, S3Event } from 'aws-lambda';
-// import AWS from 'aws-sdk';
+import { S3Event, S3EventRecord } from 'aws-lambda';
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 /**
  *
@@ -12,11 +11,11 @@ import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
  *
  */
 
-export const lambdaHandler = async (event: S3Event): Promise<APIGatewayProxyResult> => {
+async function processRecordAsync(record: S3EventRecord): Promise<any> {
     try {
-        console.log("s3 event:", event);
-
-        const client = new SQSClient({ region: 'us-east-1', endpoint: 'https://sqs.us-east-1.localhost.localstack.cloud:4566' });
+        const client = new SQSClient({});
+        console.log("s3 event--------------:", record);
+        console.log("queue url-------------:", process.env.QUEUE_URL);
         const command = new SendMessageCommand({
             QueueUrl: process.env.QUEUE_URL || "",
             DelaySeconds: 10,
@@ -34,24 +33,25 @@ export const lambdaHandler = async (event: S3Event): Promise<APIGatewayProxyResu
             //     StringValue: "6",
             //   },
             // },
-            MessageBody: JSON.stringify(event)
+            MessageBody: record.s3.object.key.replace(/\+/g, ' ')
         });
 
         const response = await client.send(command);
-        console.log(response);
-        return {
-            statusCode: 200,
-            body: JSON.stringify({
-                message: 'hello world',
-            }),
-        };
+
+        console.log("SENDING TO QUEUE IS DONE----------------");
+        console.log('response from sqs send:' + response.MessageId + "...." + response.MD5OfMessageBody)
+    } catch (err) {
+        console.error("An error occurred");
+        throw err;
+    }
+}
+
+export const lambdaHandler = async (event: S3Event): Promise<void> => {
+    try {
+        for (const record of event.Records) {
+            await processRecordAsync(record);
+        }
     } catch (err) {
         console.log(err);
-        return {
-            statusCode: 500,
-            body: JSON.stringify({
-                message: 'some error happened',
-            }),
-        };
     }
 };
