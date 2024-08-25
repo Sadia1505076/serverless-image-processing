@@ -24,7 +24,7 @@ describe('Unit test for app handler', function () {
                 }
             ]
         };
-        const result = await lambdaHandler(event);
+        await lambdaHandler(event);
 
         // expect(result.statusCode).toEqual(200);
         // expect(result.body).toEqual(

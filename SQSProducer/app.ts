@@ -6,9 +6,6 @@ import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
  * https://docs.aws.amazon.com/lambda/latest/dg/with-s3.html
  * @param {Object} event - S3 trigger event for an object creation
  *
- * Return doc: https://docs.aws.amazon.com/apigateway/latest/developerguide/set-up-lambda-proxy-integrations.html
- * @returns {Object} object - API Gateway Lambda Proxy Output Format
- *
  */
 
 async function processRecordAsync(record: S3EventRecord): Promise<any> {

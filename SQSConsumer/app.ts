@@ -1,5 +1,4 @@
 import { SQSEvent, SQSRecord } from 'aws-lambda';
-import sharp from 'sharp'
 import { DeleteMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { Readable } from 'stream';
@@ -7,11 +6,8 @@ import { Upload } from "@aws-sdk/lib-storage";
 
 /**
  *
- * Event doc: https://docs.aws.amazon.com/apigateway/latest/developerguide/set-up-lambda-proxy-integrations.html#api-gateway-simple-proxy-for-lambda-input-format
- * @param {Object} event - API Gateway Lambda Proxy Input Format
- *
- * Return doc: https://docs.aws.amazon.com/apigateway/latest/developerguide/set-up-lambda-proxy-integrations.html
- * @returns {Object} object - API Gateway Lambda Proxy Output Format
+ * Event doc: https://docs.aws.amazon.com/lambda/latest/dg/with-sqs.html
+ * @param {Object} event - SQS event
  *
  */
 
@@ -36,10 +32,10 @@ async function processMessageAsync(message: SQSRecord): Promise<any> {
         console.log("object is fetched:---------------" + response.ContentType);
 
         const sharpInstance = sharp()
-            .resize(300, 200) // Resize the image
-            .toFormat('webp'); // Convert to WebP format
+            .resize(300, 200)
+            .toFormat('webp');
         response.Body.pipe(sharpInstance);
-        const processedImage = await sharpInstance.toBuffer();
+        // const processedImage = await sharpInstance.toBuffer();
 
         // when the file is large or stream of unknown length
         // s3 write
@@ -48,12 +44,10 @@ async function processMessageAsync(message: SQSRecord): Promise<any> {
             params: {
                 Bucket: writeBucketName || 'image-processing-processedimagesbucket-vpnyhporn9aj',
                 Key: messageBody,
-                Body: processedImage,
-                ContentType: response.ContentType,
+                Body: sharpInstance,
+                ContentType: 'webp',
             },
         });
-
-        // Await the completion of the upload
         const result = await upload.done();
         console.log('File successfully uploaded:', result);
 
